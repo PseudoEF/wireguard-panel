@@ -1,0 +1,10 @@
+<dialog id="qr-dialog">
+  <h2 id="qr-title"></h2>
+  <img id="qr-img" alt="QR-код конфига">
+  <p id="qr-too-large" class="error" hidden>Конфиг слишком большой для QR (много исключений) — скачай файл.</p>
+  <p class="muted small">Приложение WireGuard → «+» → «Сканировать QR-код»</p>
+  <div class="actions">
+    <a id="qr-download" class="btn">Скачать .conf</a>
+    <button type="button" class="ghost" onclick="document.getElementById('qr-dialog').close()">Закрыть</button>
+  </div>
+</dialog>

@@ -1,0 +1,9 @@
+data/
+logs/
+.venv/
+__pycache__/
+*.pyc
+dist/
+tools/winsw.exe
+.env
+.DS_Store

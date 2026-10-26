@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block body %}
+<header>
+  <h1>WireGuard <span class="muted">{{ endpoint }}</span></h1>
+  <div class="actions">
+    <a class="btn ghost" href="/tools/check-route.bat"
+       title="Для Windows-клиента: показывает, идёт ли сайт/IP через VPN или напрямую, с трассировкой">Проверка маршрута (.bat)</a>
+    <form method="post" action="/logout"><button class="ghost">Выйти</button></form>
+  </div>
+</header>
+
+<main>
+  <form method="post" action="/clients" class="add card">
+    <input name="name" placeholder="Имя клиента, например: client-01" maxlength="64" required autofocus>
+    <button type="submit">Создать</button>
+  </form>
+
+  {% if error %}<p class="error">Интерфейс недоступен: {{ error }}</p>{% endif %}
+  <p class="error" id="poll-error" hidden></p>
+
+  <div class="summary muted" id="summary"></div>
+
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th></th><th>Имя</th><th>IP</th><th>Откуда</th><th>Последний раз</th>
+        <th class="num">↓ Получено</th><th class="num">↑ Отправлено</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in rows %}
+      <tr data-id="{{ c.id }}" class="{{ '' if c.enabled else 'disabled' }}">
+        <td><span class="dot" title="статус"></span></td>
+        <td>
+          <details class="rename">
+            <summary>{{ c.name }}</summary>
+            <form method="post" action="/clients/{{ c.id }}/rename">
+              <input name="name" value="{{ c.name }}" maxlength="64" required>
+              <button>OK</button>
+            </form>
+          </details>
+          <div class="muted small">создан {{ c.created_at }}</div>
+          <div class="badges">
+            {% if c.config_status == "stale" %}<span class="badge warn" title="Маршруты изменились после выдачи — отправь клиенту новый QR/.conf">конфиг устарел</span>{% endif %}
+            {% if c.config_status == "new" %}<span class="badge">не выдан</span>{% endif %}
+            {% if c.exclusions_count %}<span class="badge">мимо VPN: {{ c.exclusions_count }}</span>{% endif %}
+            {% if c.exclude_lan %}<span class="badge">локалка напрямую</span>{% endif %}
+          </div>
+        </td>
+        <td class="mono">{{ c.address }}</td>
+        <td class="mono f-endpoint">—</td>
+        <td class="f-seen">—</td>
+        <td class="num f-rx">—</td>
+        <td class="num f-tx">—</td>
+        <td class="actions">
+          <button type="button" class="ghost" onclick="showQr({{ c.id }}, {{ c.name|tojson|forceescape }})">QR</button>
+          <a class="btn ghost" href="/clients/{{ c.id }}/config">.conf</a>
+          <a class="btn ghost" href="/clients/{{ c.id }}/routes">Маршруты</a>
+          <form method="post" action="/clients/{{ c.id }}/toggle">
+            <button class="ghost">{{ 'Отключить' if c.enabled else 'Включить' }}</button>
+          </form>
+          <form method="post" action="/clients/{{ c.id }}/delete"
+                onsubmit="return confirm('Удалить клиента «' + {{ c.name|tojson|forceescape }} + '»? Его конфиг перестанет работать.')">
+            <button class="danger">Удалить</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">Клиентов пока нет — создай первого.</p>
+  {% endif %}
+</main>
+
+{% include "_qr_dialog.html" %}
+
+<script src="/static/app.js"></script>
+{% endblock %}

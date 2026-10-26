@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block body %}
+<header>
+  <h1><a href="/" class="back">←</a> Маршруты: {{ c.name }} <span class="muted mono">{{ c.address }}</span></h1>
+</header>
+
+<main class="narrow">
+  {% if errors %}
+  <div class="card notice error-box">
+    {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  {% if status == "stale" %}
+  <div class="card notice warn-box">
+    Маршруты изменились. Выданный раньше конфиг их не знает, поэтому клиенту нужно заново
+    отсканировать QR или импортировать новый .conf.
+    <div class="actions">
+      <button type="button" onclick="showQr({{ c.id }}, {{ c.name|tojson|forceescape }})">Показать QR</button>
+      <a class="btn ghost" href="/clients/{{ c.id }}/config">Скачать .conf</a>
+    </div>
+  </div>
+  {% elif status == "ok" and request.query_params.get("saved") %}
+  <div class="card notice ok-box">Сохранено. Выданный конфиг актуален, перевыдавать не нужно.</div>
+  {% endif %}
+
+  <form method="post" class="card routes-form">
+    <label for="ex"><b>Ходить напрямую, мимо VPN</b></label>
+    <p class="muted small">
+      По одному на строку: IP (<span class="mono">1.2.3.4</span>), подсеть
+      (<span class="mono">1.2.3.0/24</span>) или домен латиницей (<span class="mono">sberbank.ru</span>, можно ссылкой).
+      Кириллические домены (.рф) не принимаются, для них укажи IP.
+      Всё остальное пойдёт через VPN.<br>
+      В QR-код помещается примерно 5–8 исключений. Если их больше, конфиг выдаётся только файлом.
+    </p>
+    <textarea id="ex" name="exclusions" rows="8" spellcheck="false"
+      placeholder="sberbank.ru&#10;gosuslugi.ru&#10;95.213.0.0/16">{{ draft_text if draft_text is defined else c.exclusions }}</textarea>
+
+    <label class="check">
+      <input type="checkbox" name="exclude_lan" value="1" {{ "checked" if c.exclude_lan }}>
+      Локальные сети напрямую
+      <span class="muted small">(роутер, принтер, домашние устройства: {{ lan_nets|join(", ") }})</span>
+    </label>
+
+    <div class="actions">
+      <button type="submit">Сохранить</button>
+      <a class="btn ghost" href="/">Назад</a>
+    </div>
+    <p class="muted small">
+      Проверить на Windows-клиенте, что исключение работает:
+      <a href="/tools/check-route.bat">check-route.bat</a> — покажет «через VPN» или «напрямую» и трассировку.
+    </p>
+  </form>
+
+  {% if entries or c.exclude_lan %}
+  <div class="card">
+    <b>Что сейчас исключено</b>
+    <table class="compact">
+      {% for kind, value in entries %}
+      <tr>
+        <td class="mono">{{ value }}</td>
+        <td class="mono muted">
+          {% if kind == "domain" %}
+            {% if value in resolved %}{{ resolved[value]|join(", ") }}{% else %}<span class="error">не удалось получить IP</span>{% endif %}
+          {% else %}напрямую{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      {% if c.exclude_lan %}<tr><td>локальные сети</td><td class="mono muted">{{ lan_nets|join(", ") }}</td></tr>{% endif %}
+      {% if endpoint %}<tr><td>адрес VPN-сервера</td><td class="mono muted">{{ endpoint|join(", ") }} (автоматически — иначе туннель зациклится на Linux)</td></tr>{% endif %}
+    </table>
+    <p class="muted small">
+      IP доменов определяются с VPS в момент выдачи конфига. Если сайт сидит за CDN
+      (Cloudflare и т.п.), его IP могут меняться. Тогда здесь появится «конфиг устарел»,
+      и конфиг нужно выдать заново. Для таких сайтов надёжнее вписать их подсеть.
+    </p>
+    <details>
+      <summary class="muted small">AllowedIPs в конфиге ({{ allowed|length }} диапазонов)</summary>
+      <pre class="mono small allowed">{{ allowed|join(", ") }}</pre>
+    </details>
+  </div>
+  {% endif %}
+</main>
+
+{% include "_qr_dialog.html" %}
+<script src="/static/app.js"></script>
+{% endblock %}
